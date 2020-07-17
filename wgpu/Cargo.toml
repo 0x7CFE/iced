@@ -26,6 +26,10 @@ guillotiere = "0.5"
 # resolved
 gfx-memory = "=0.1.1"
 
+[dependencies.wgpu-native]
+version = "0.5"
+features = ["vulkan-portability"]
+
 [dependencies.iced_native]
 version = "0.2"
 path = "../native"

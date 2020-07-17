@@ -1,0 +1,5 @@
+    Finished dev [unoptimized + debuginfo] target(s) in 0.52s
+     Running `target/debug/stopwatch`
+thread 'main' panicked at '0:1(10): error: GLSL 3.30 is not supported. Supported versions are: 1.10, 1.20, 1.00 ES, and 3.00 ES
+', /home/pi/.cargo/registry/src/github.com-1ecc6299db9ec823/glow_glyph-0.2.0/src/pipeline.rs:287:13
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

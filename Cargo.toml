@@ -13,6 +13,7 @@ categories = ["gui"]
 
 [features]
 default = ["wgpu", "default_system_font"]
+#default = ["wgpu", "default_system_font", "glow", "glow_canvas"]
 # Enables the `iced_wgpu` renderer
 wgpu = ["iced_wgpu"]
 # Enables the `Image` widget
@@ -90,3 +91,6 @@ iced_web = { version = "0.2", path = "web" }
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
 features = ["image", "svg", "canvas"]
+
+[patch.crates-io]
+glow_glyph = { path = '../glow_glyph' }
