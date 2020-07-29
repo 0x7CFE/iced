@@ -21,7 +21,7 @@ impl Sandbox for Tiger {
 
     fn view(&mut self) -> Element<()> {
         let svg = Svg::from_path(format!(
-            "{}/resources/tiger.svg",
+            "{}/resources/crash.svg",
             env!("CARGO_MANIFEST_DIR")
         ))
         .width(Length::Fill)

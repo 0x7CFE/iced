@@ -6,4 +6,6 @@ edition = "2018"
 publish = false
 
 [dependencies]
-iced = { path = "../..", features = ["svg"] }
+# iced = { path = "../..", features = ["svg"] }
+iced = { version = "0.1.1", features = ["svg"] }
+
