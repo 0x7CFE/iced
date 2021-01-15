@@ -103,4 +103,5 @@ rustdoc-args = ["--cfg", "docsrs"]
 features = ["image", "svg", "canvas"]
 
 [patch.crates-io]
-glow_glyph = { path = '../glow_glyph' }
+#glow_glyph = { path = '../glow_glyph' }
+glow_glyph = { git = "https://github.com/0x7CFE/glow_glyph.git", branch = "gl300es" }
