@@ -1,9 +1,6 @@
 //! Display fields that can be filled with text.
 //!
 //! A [`TextInput`] has some local [`State`].
-//!
-//! [`TextInput`]: struct.TextInput.html
-//! [`State`]: struct.State.html
 use crate::backend::{self, Backend};
 use crate::{Primitive, Renderer};
 use iced_native::mouse;
@@ -27,13 +24,7 @@ impl<B> text_input::Renderer for Renderer<B>
 where
     B: Backend + backend::Text,
 {
-    type Font = Font;
     type Style = Box<dyn StyleSheet>;
-
-    fn default_size(&self) -> u16 {
-        // TODO: Make this configurable
-        20
-    }
 
     fn measure_value(&self, value: &str, size: u16, font: Font) -> f32 {
         let backend = self.backend();
@@ -155,8 +146,8 @@ where
                             background: Background::Color(
                                 style_sheet.value_color(),
                             ),
-                            border_radius: 0,
-                            border_width: 0,
+                            border_radius: 0.0,
+                            border_width: 0.0,
                             border_color: Color::TRANSPARENT,
                         },
                         offset,
@@ -199,8 +190,8 @@ where
                             background: Background::Color(
                                 style_sheet.selection_color(),
                             ),
-                            border_radius: 0,
-                            border_width: 0,
+                            border_radius: 0.0,
+                            border_width: 0.0,
                             border_color: Color::TRANSPARENT,
                         },
                         if end == right {

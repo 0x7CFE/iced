@@ -100,8 +100,10 @@ A bunch of simpler examples exist:
 - [`geometry`](geometry), a custom widget showcasing how to draw geometry with the `Mesh2D` primitive in [`iced_wgpu`](../wgpu).
 - [`integration`](integration), a demonstration of how to integrate Iced in an existing graphical application.
 - [`pane_grid`](pane_grid), a grid of panes that can be split, resized, and reorganized.
+- [`pick_list`](pick_list), a dropdown list of selectable options.
 - [`pokedex`](pokedex), an application that displays a random Pokédex entry (sprite included!) by using the [PokéAPI].
 - [`progress_bar`](progress_bar), a simple progress bar that can be filled by using a slider.
+- [`scrollable`](scrollable), a showcase of the various scrollbar width options.
 - [`solar_system`](solar_system), an animated solar system drawn using the `Canvas` widget and showcasing how to compose different transforms.
 - [`stopwatch`](stopwatch), a watch with start/stop and reset buttons showcasing how to listen to time.
 - [`svg`](svg), an application that renders the [Ghostscript Tiger] by leveraging the `Svg` widget.
@@ -116,7 +118,7 @@ cargo run --package <example>
 [Ghostscript Tiger]: https://commons.wikimedia.org/wiki/File:Ghostscript_Tiger.svg
 
 ## [Coffee]
-Since [Iced was born in May], it has been powering the user interfaces in
+Since [Iced was born in May 2019], it has been powering the user interfaces in
 [Coffee], an experimental 2D game engine.
 
 
@@ -126,6 +128,6 @@ Since [Iced was born in May], it has been powering the user interfaces in
   </a>
 </div>
 
-[Iced was born in May]: https://github.com/hecrj/coffee/pull/35
+[Iced was born in May 2019]: https://github.com/hecrj/coffee/pull/35
 [`ui` module]: https://docs.rs/coffee/0.3.2/coffee/ui/index.html
 [Coffee]: https://github.com/hecrj/coffee

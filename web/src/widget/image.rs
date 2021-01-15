@@ -22,6 +22,9 @@ pub struct Image {
     /// The image path
     pub handle: Handle,
 
+    /// The alt text of the image
+    pub alt: String,
+
     /// The width of the image
     pub width: Length,
 
@@ -31,29 +34,30 @@ pub struct Image {
 
 impl Image {
     /// Creates a new [`Image`] with the given path.
-    ///
-    /// [`Image`]: struct.Image.html
     pub fn new<T: Into<Handle>>(handle: T) -> Self {
         Image {
             handle: handle.into(),
+            alt: Default::default(),
             width: Length::Shrink,
             height: Length::Shrink,
         }
     }
 
     /// Sets the width of the [`Image`] boundaries.
-    ///
-    /// [`Image`]: struct.Image.html
     pub fn width(mut self, width: Length) -> Self {
         self.width = width;
         self
     }
 
     /// Sets the height of the [`Image`] boundaries.
-    ///
-    /// [`Image`]: struct.Image.html
     pub fn height(mut self, height: Length) -> Self {
         self.height = height;
+        self
+    }
+
+    /// Sets the alt text of the [`Image`].
+    pub fn alt(mut self, alt: impl Into<String>) -> Self {
+        self.alt = alt.into();
         self
     }
 }
@@ -66,12 +70,19 @@ impl<Message> Widget<Message> for Image {
         _style_sheet: &mut Css<'b>,
     ) -> dodrio::Node<'b> {
         use dodrio::builder::*;
+        use dodrio::bumpalo::collections::String;
 
-        let src = bumpalo::format!(in bump, "{}", match self.handle.data.as_ref() {
-            Data::Path(path) => path.to_str().unwrap_or("")
-        });
+        let src = String::from_str_in(
+            match self.handle.data.as_ref() {
+                Data::Path(path) => path.to_str().unwrap_or(""),
+            },
+            bump,
+        )
+        .into_bump_str();
 
-        let mut image = img(bump).attr("src", src.into_bump_str());
+        let alt = String::from_str_in(&self.alt, bump).into_bump_str();
+
+        let mut image = img(bump).attr("src", src).attr("alt", alt);
 
         match self.width {
             Length::Shrink => {}
@@ -99,8 +110,6 @@ impl<'a, Message> From<Image> for Element<'a, Message> {
 }
 
 /// An [`Image`] handle.
-///
-/// [`Image`]: struct.Image.html
 #[derive(Debug, Clone)]
 pub struct Handle {
     id: u64,
@@ -109,8 +118,6 @@ pub struct Handle {
 
 impl Handle {
     /// Creates an image [`Handle`] pointing to the image of the given path.
-    ///
-    /// [`Handle`]: struct.Handle.html
     pub fn from_path<T: Into<PathBuf>>(path: T) -> Handle {
         Self::from_data(Data::Path(path.into()))
     }
@@ -126,15 +133,11 @@ impl Handle {
     }
 
     /// Returns the unique identifier of the [`Handle`].
-    ///
-    /// [`Handle`]: struct.Handle.html
     pub fn id(&self) -> u64 {
         self.id
     }
 
     /// Returns a reference to the image [`Data`].
-    ///
-    /// [`Data`]: enum.Data.html
     pub fn data(&self) -> &Data {
         &self.data
     }
@@ -153,8 +156,6 @@ impl From<&str> for Handle {
 }
 
 /// The data of an [`Image`].
-///
-/// [`Image`]: struct.Image.html
 #[derive(Clone, Hash)]
 pub enum Data {
     /// A remote image

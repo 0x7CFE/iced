@@ -1,7 +1,8 @@
 use crate::{
-    button, checkbox, column, progress_bar, radio, row, scrollable, slider,
-    text, text_input, Color, Element, Font, HorizontalAlignment, Layout, Point,
-    Rectangle, Renderer, Size, VerticalAlignment,
+    button, checkbox, column, container, pane_grid, progress_bar, radio, row,
+    scrollable, slider, text, text_input, Color, Element, Font,
+    HorizontalAlignment, Layout, Point, Rectangle, Renderer, Size,
+    VerticalAlignment,
 };
 
 /// A renderer that does nothing.
@@ -12,8 +13,6 @@ pub struct Null;
 
 impl Null {
     /// Creates a new [`Null`] renderer.
-    ///
-    /// [`Null`]: struct.Null.html
     pub fn new() -> Null {
         Null
     }
@@ -22,6 +21,9 @@ impl Null {
 impl Renderer for Null {
     type Output = ();
     type Defaults = ();
+
+    fn overlay(&mut self, _base: (), _overlay: (), _overlay_bounds: Rectangle) {
+    }
 }
 
 impl column::Renderer for Null {
@@ -31,6 +33,7 @@ impl column::Renderer for Null {
         _content: &[Element<'_, Message, Self>],
         _layout: Layout<'_>,
         _cursor_position: Point,
+        _viewport: &Rectangle,
     ) {
     }
 }
@@ -42,6 +45,7 @@ impl row::Renderer for Null {
         _content: &[Element<'_, Message, Self>],
         _layout: Layout<'_>,
         _cursor_position: Point,
+        _viewport: &Rectangle,
     ) {
     }
 }
@@ -85,6 +89,9 @@ impl scrollable::Renderer for Null {
         _bounds: Rectangle,
         _content_bounds: Rectangle,
         _offset: u32,
+        _scrollbar_width: u16,
+        _scrollbar_margin: u16,
+        _scroller_width: u16,
     ) -> Option<scrollable::Scrollbar> {
         None
     }
@@ -105,12 +112,7 @@ impl scrollable::Renderer for Null {
 }
 
 impl text_input::Renderer for Null {
-    type Font = Font;
     type Style = ();
-
-    fn default_size(&self) -> u16 {
-        20
-    }
 
     fn measure_value(&self, _value: &str, _size: u16, _font: Font) -> f32 {
         0.0
@@ -198,9 +200,7 @@ impl checkbox::Renderer for Null {
 impl slider::Renderer for Null {
     type Style = ();
 
-    fn height(&self) -> u32 {
-        30
-    }
+    const DEFAULT_HEIGHT: u16 = 30;
 
     fn draw(
         &mut self,
@@ -225,6 +225,63 @@ impl progress_bar::Renderer for Null {
         _range: std::ops::RangeInclusive<f32>,
         _value: f32,
         _style: &Self::Style,
+    ) {
+    }
+}
+
+impl container::Renderer for Null {
+    type Style = ();
+
+    fn draw<Message>(
+        &mut self,
+        _defaults: &Self::Defaults,
+        _bounds: Rectangle,
+        _cursor_position: Point,
+        _viewport: &Rectangle,
+        _style: &Self::Style,
+        _content: &Element<'_, Message, Self>,
+        _content_layout: Layout<'_>,
+    ) {
+    }
+}
+
+impl pane_grid::Renderer for Null {
+    type Style = ();
+
+    fn draw<Message>(
+        &mut self,
+        _defaults: &Self::Defaults,
+        _content: &[(pane_grid::Pane, pane_grid::Content<'_, Message, Self>)],
+        _dragging: Option<(pane_grid::Pane, Point)>,
+        _resizing: Option<(pane_grid::Axis, Rectangle, bool)>,
+        _layout: Layout<'_>,
+        _style: &<Self as pane_grid::Renderer>::Style,
+        _cursor_position: Point,
+    ) {
+    }
+
+    fn draw_pane<Message>(
+        &mut self,
+        _defaults: &Self::Defaults,
+        _bounds: Rectangle,
+        _style: &<Self as container::Renderer>::Style,
+        _title_bar: Option<(
+            &pane_grid::TitleBar<'_, Message, Self>,
+            Layout<'_>,
+        )>,
+        _body: (&Element<'_, Message, Self>, Layout<'_>),
+        _cursor_position: Point,
+    ) {
+    }
+
+    fn draw_title_bar<Message>(
+        &mut self,
+        _defaults: &Self::Defaults,
+        _bounds: Rectangle,
+        _style: &<Self as container::Renderer>::Style,
+        _content: (&Element<'_, Message, Self>, Layout<'_>),
+        _controls: Option<(&Element<'_, Message, Self>, Layout<'_>)>,
+        _cursor_position: Point,
     ) {
     }
 }

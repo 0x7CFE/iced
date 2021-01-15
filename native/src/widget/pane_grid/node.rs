@@ -3,21 +3,16 @@ use crate::{
     Rectangle, Size,
 };
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// A layout node of a [`PaneGrid`].
 ///
-/// [`PaneGrid`]: struct.PaneGrid.html
+/// [`PaneGrid`]: crate::widget::PaneGrid
 #[derive(Debug, Clone)]
 pub enum Node {
     /// The region of this [`Node`] is split into two.
-    ///
-    /// [`Node`]: enum.Node.html
     Split {
         /// The [`Split`] of this [`Node`].
-        ///
-        /// [`Split`]: struct.Split.html
-        /// [`Node`]: enum.Node.html
         id: Split,
 
         /// The direction of the split.
@@ -27,33 +22,45 @@ pub enum Node {
         ratio: f32,
 
         /// The left/top [`Node`] of the split.
-        ///
-        /// [`Node`]: enum.Node.html
         a: Box<Node>,
 
         /// The right/bottom [`Node`] of the split.
-        ///
-        /// [`Node`]: enum.Node.html
         b: Box<Node>,
     },
     /// The region of this [`Node`] is taken by a [`Pane`].
-    ///
-    /// [`Pane`]: struct.Pane.html
     Pane(Pane),
 }
 
 impl Node {
+    /// Returns an iterator over each [`Split`] in this [`Node`].
+    pub fn splits(&self) -> impl Iterator<Item = &Split> {
+        let mut unvisited_nodes = vec![self];
+
+        std::iter::from_fn(move || {
+            while let Some(node) = unvisited_nodes.pop() {
+                match node {
+                    Node::Split { id, a, b, .. } => {
+                        unvisited_nodes.push(a);
+                        unvisited_nodes.push(b);
+
+                        return Some(id);
+                    }
+                    _ => {}
+                }
+            }
+
+            None
+        })
+    }
+
     /// Returns the rectangular region for each [`Pane`] in the [`Node`] given
     /// the spacing between panes and the total available space.
-    ///
-    /// [`Pane`]: struct.Pane.html
-    /// [`Node`]: enum.Node.html
-    pub fn regions(
+    pub fn pane_regions(
         &self,
         spacing: f32,
         size: Size,
-    ) -> HashMap<Pane, Rectangle> {
-        let mut regions = HashMap::new();
+    ) -> BTreeMap<Pane, Rectangle> {
+        let mut regions = BTreeMap::new();
 
         self.compute_regions(
             spacing,
@@ -72,15 +79,12 @@ impl Node {
     /// Returns the axis, rectangular region, and ratio for each [`Split`] in
     /// the [`Node`] given the spacing between panes and the total available
     /// space.
-    ///
-    /// [`Split`]: struct.Split.html
-    /// [`Node`]: enum.Node.html
-    pub fn splits(
+    pub fn split_regions(
         &self,
         spacing: f32,
         size: Size,
-    ) -> HashMap<Split, (Axis, Rectangle, f32)> {
-        let mut splits = HashMap::new();
+    ) -> BTreeMap<Split, (Axis, Rectangle, f32)> {
+        let mut splits = BTreeMap::new();
 
         self.compute_splits(
             spacing,
@@ -187,7 +191,7 @@ impl Node {
         &self,
         spacing: f32,
         current: &Rectangle,
-        regions: &mut HashMap<Pane, Rectangle>,
+        regions: &mut BTreeMap<Pane, Rectangle>,
     ) {
         match self {
             Node::Split {
@@ -208,7 +212,7 @@ impl Node {
         &self,
         spacing: f32,
         current: &Rectangle,
-        splits: &mut HashMap<Split, (Axis, Rectangle, f32)>,
+        splits: &mut BTreeMap<Split, (Axis, Rectangle, f32)>,
     ) {
         match self {
             Node::Split {

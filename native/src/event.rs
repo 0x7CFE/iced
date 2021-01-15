@@ -1,4 +1,8 @@
-use crate::{keyboard, mouse, window};
+//! Handle events of a user interface.
+use crate::keyboard;
+use crate::mouse;
+use crate::touch;
+use crate::window;
 
 /// A user interface event.
 ///
@@ -6,7 +10,7 @@ use crate::{keyboard, mouse, window};
 /// additional events, feel free to [open an issue] and share your use case!_
 ///
 /// [open an issue]: https://github.com/hecrj/iced/issues
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// A keyboard event
     Keyboard(keyboard::Event),
@@ -16,4 +20,38 @@ pub enum Event {
 
     /// A window event
     Window(window::Event),
+
+    /// A touch event
+    Touch(touch::Event),
+}
+
+/// The status of an [`Event`] after being processed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    /// The [`Event`] was **NOT** handled by any widget.
+    Ignored,
+
+    /// The [`Event`] was handled and processed by a widget.
+    Captured,
+}
+
+impl Status {
+    /// Merges two [`Status`] into one.
+    ///
+    /// `Captured` takes precedence over `Ignored`:
+    ///
+    /// ```
+    /// use iced_native::event::Status;
+    ///
+    /// assert_eq!(Status::Ignored.merge(Status::Ignored), Status::Ignored);
+    /// assert_eq!(Status::Ignored.merge(Status::Captured), Status::Captured);
+    /// assert_eq!(Status::Captured.merge(Status::Ignored), Status::Captured);
+    /// assert_eq!(Status::Captured.merge(Status::Captured), Status::Captured);
+    /// ```
+    pub fn merge(self, b: Self) -> Self {
+        match self {
+            Status::Ignored => b,
+            Status::Captured => Status::Captured,
+        }
+    }
 }

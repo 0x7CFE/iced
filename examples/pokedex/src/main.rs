@@ -1,9 +1,9 @@
 use iced::{
     button, futures, image, Align, Application, Button, Column, Command,
-    Container, Element, Image, Length, Row, Settings, Text,
+    Container, Element, Length, Row, Settings, Text,
 };
 
-pub fn main() {
+pub fn main() -> iced::Result {
     Pokedex::run(Settings::default())
 }
 
@@ -112,16 +112,20 @@ struct Pokemon {
     name: String,
     description: String,
     image: image::Handle,
+    image_viewer: image::viewer::State,
 }
 
 impl Pokemon {
     const TOTAL: u16 = 807;
 
-    fn view(&self) -> Element<Message> {
+    fn view(&mut self) -> Element<Message> {
         Row::new()
             .spacing(20)
             .align_items(Align::Center)
-            .push(Image::new(self.image.clone()))
+            .push(image::Viewer::new(
+                &mut self.image_viewer,
+                self.image.clone(),
+            ))
             .push(
                 Column::new()
                     .spacing(20)
@@ -200,6 +204,7 @@ impl Pokemon {
                 .map(|c| if c.is_control() { ' ' } else { c })
                 .collect(),
             image,
+            image_viewer: image::viewer::State::new(),
         })
     }
 
@@ -251,7 +256,7 @@ mod style {
                 background: Some(Background::Color(match self {
                     Button::Primary => Color::from_rgb(0.11, 0.42, 0.87),
                 })),
-                border_radius: 12,
+                border_radius: 12.0,
                 shadow_offset: Vector::new(1.0, 1.0),
                 text_color: Color::WHITE,
                 ..button::Style::default()

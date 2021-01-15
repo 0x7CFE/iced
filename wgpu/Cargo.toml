@@ -1,6 +1,6 @@
 [package]
 name = "iced_wgpu"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Héctor Ramón Jiménez <hector0193@gmail.com>"]
 edition = "2018"
 description = "A wgpu renderer for Iced"
@@ -8,30 +8,30 @@ license = "MIT AND OFL-1.1"
 repository = "https://github.com/hecrj/iced"
 
 [features]
-svg = ["resvg"]
+svg = ["resvg", "usvg"]
 canvas = ["iced_graphics/canvas"]
+qr_code = ["iced_graphics/qr_code"]
 default_system_font = ["iced_graphics/font-source"]
 
 [dependencies]
-wgpu = "0.5"
-wgpu_glyph = "0.9"
+wgpu = "0.6"
+wgpu_glyph = "0.10"
 glyph_brush = "0.7"
-zerocopy = "0.3"
-bytemuck = "1.2"
 raw-window-handle = "0.3"
-glam = "0.8"
 log = "0.4"
-guillotiere = "0.5"
-# Pin `gfx-memory` until https://github.com/gfx-rs/wgpu-rs/issues/261 is
-# resolved
-gfx-memory = "=0.1.1"
+guillotiere = "0.6"
+futures = "0.3"
+
+[dependencies.bytemuck]
+version = "1.4"
+features = ["derive"]
 
 [dependencies.wgpu-native]
 version = "0.5"
 features = ["vulkan-portability"]
 
 [dependencies.iced_native]
-version = "0.2"
+version = "0.3"
 path = "../native"
 
 [dependencies.iced_graphics]
@@ -44,8 +44,11 @@ version = "0.23"
 optional = true
 
 [dependencies.resvg]
-version = "0.9"
-features = ["raqote-backend"]
+version = "0.12"
+optional = true
+
+[dependencies.usvg]
+version = "0.12"
 optional = true
 
 [package.metadata.docs.rs]

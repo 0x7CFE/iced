@@ -5,7 +5,7 @@ use iced::{
 };
 use serde::{Deserialize, Serialize};
 
-pub fn main() {
+pub fn main() -> iced::Result {
     Todos::run(Settings::default())
 }
 
@@ -425,7 +425,7 @@ impl Filter {
     }
 }
 
-fn loading_message() -> Element<'static, Message> {
+fn loading_message<'a>() -> Element<'a, Message> {
     Container::new(
         Text::new("Loading...")
             .horizontal_alignment(HorizontalAlignment::Center)
@@ -437,7 +437,7 @@ fn loading_message() -> Element<'static, Message> {
     .into()
 }
 
-fn empty_message(message: &str) -> Element<'static, Message> {
+fn empty_message<'a>(message: &str) -> Element<'a, Message> {
     Container::new(
         Text::new(message)
             .width(Length::Fill)
@@ -489,7 +489,6 @@ enum LoadError {
 
 #[derive(Debug, Clone)]
 enum SaveError {
-    DirectoryError,
     FileError,
     WriteError,
     FormatError,
@@ -499,7 +498,7 @@ enum SaveError {
 impl SavedState {
     fn path() -> std::path::PathBuf {
         let mut path = if let Some(project_dirs) =
-            directories::ProjectDirs::from("rs", "Iced", "Todos")
+            directories_next::ProjectDirs::from("rs", "Iced", "Todos")
         {
             project_dirs.data_dir().into()
         } else {
@@ -538,7 +537,7 @@ impl SavedState {
         if let Some(dir) = path.parent() {
             async_std::fs::create_dir_all(dir)
                 .await
-                .map_err(|_| SaveError::DirectoryError)?;
+                .map_err(|_| SaveError::FileError)?;
         }
 
         {
@@ -611,7 +610,7 @@ mod style {
                             background: Some(Background::Color(
                                 Color::from_rgb(0.2, 0.2, 0.7),
                             )),
-                            border_radius: 10,
+                            border_radius: 10.0,
                             text_color: Color::WHITE,
                             ..button::Style::default()
                         }
@@ -627,7 +626,7 @@ mod style {
                     background: Some(Background::Color(Color::from_rgb(
                         0.8, 0.2, 0.2,
                     ))),
-                    border_radius: 5,
+                    border_radius: 5.0,
                     text_color: Color::WHITE,
                     shadow_offset: Vector::new(1.0, 1.0),
                     ..button::Style::default()

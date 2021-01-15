@@ -1,5 +1,5 @@
 /// A divider that splits a region in a [`PaneGrid`] into two different panes.
 ///
-/// [`PaneGrid`]: struct.PaneGrid.html
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// [`PaneGrid`]: crate::widget::PaneGrid
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Split(pub(super) usize);

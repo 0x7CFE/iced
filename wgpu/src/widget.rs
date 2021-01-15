@@ -13,8 +13,10 @@ pub mod button;
 pub mod checkbox;
 pub mod container;
 pub mod pane_grid;
+pub mod pick_list;
 pub mod progress_bar;
 pub mod radio;
+pub mod rule;
 pub mod scrollable;
 pub mod slider;
 pub mod text_input;
@@ -28,9 +30,13 @@ pub use container::Container;
 #[doc(no_inline)]
 pub use pane_grid::PaneGrid;
 #[doc(no_inline)]
+pub use pick_list::PickList;
+#[doc(no_inline)]
 pub use progress_bar::ProgressBar;
 #[doc(no_inline)]
 pub use radio::Radio;
+#[doc(no_inline)]
+pub use rule::Rule;
 #[doc(no_inline)]
 pub use scrollable::Scrollable;
 #[doc(no_inline)]
@@ -45,6 +51,14 @@ pub mod canvas;
 #[cfg(feature = "canvas")]
 #[doc(no_inline)]
 pub use canvas::Canvas;
+
+#[cfg(feature = "qr_code")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qr_code")))]
+pub mod qr_code;
+
+#[cfg(feature = "qr_code")]
+#[doc(no_inline)]
+pub use qr_code::QRCode;
 
 pub use iced_native::Space;
 

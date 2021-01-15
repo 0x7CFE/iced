@@ -5,8 +5,6 @@ use crate::subscription::{self, Subscription};
 ///
 /// The first message is produced after a `duration`, and then continues to
 /// produce more messages every `duration` after that.
-///
-/// [`Subscription`]: ../subscription/struct.Subscription.html
 pub fn every<H: std::hash::Hasher, E>(
     duration: std::time::Duration,
 ) -> Subscription<H, E, std::time::Instant> {
@@ -41,7 +39,10 @@ where
     }
 }
 
-#[cfg(all(feature = "tokio", not(feature = "async-std")))]
+#[cfg(all(
+    any(feature = "tokio", feature = "tokio_old"),
+    not(feature = "async-std")
+))]
 impl<H, E> subscription::Recipe<H, E> for Every
 where
     H: std::hash::Hasher,
@@ -61,10 +62,25 @@ where
     ) -> futures::stream::BoxStream<'static, Self::Output> {
         use futures::stream::StreamExt;
 
+        #[cfg(feature = "tokio_old")]
+        use tokio_old as tokio;
+
         let start = tokio::time::Instant::now() + self.0;
 
-        tokio::time::interval_at(start, self.0)
-            .map(|_| std::time::Instant::now())
-            .boxed()
+        let stream = {
+            #[cfg(feature = "tokio")]
+            {
+                futures::stream::unfold(
+                    tokio::time::interval_at(start, self.0),
+                    |mut interval| async move {
+                        Some((interval.tick().await, interval))
+                    },
+                )
+            }
+            #[cfg(feature = "tokio_old")]
+            tokio::time::interval_at(start, self.0)
+        };
+
+        stream.map(tokio::time::Instant::into_std).boxed()
     }
 }

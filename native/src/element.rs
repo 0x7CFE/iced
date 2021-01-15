@@ -1,5 +1,8 @@
+use crate::event::{self, Event};
+use crate::layout;
+use crate::overlay;
 use crate::{
-    layout, Clipboard, Color, Event, Hasher, Layout, Length, Point, Widget,
+    Clipboard, Color, Hasher, Layout, Length, Point, Rectangle, Widget,
 };
 
 /// A generic [`Widget`].
@@ -11,8 +14,6 @@ use crate::{
 /// to turn it into an [`Element`].
 ///
 /// [built-in widget]: widget/index.html#built-in-widgets
-/// [`Widget`]: widget/trait.Widget.html
-/// [`Element`]: struct.Element.html
 #[allow(missing_debug_implementations)]
 pub struct Element<'a, Message, Renderer> {
     pub(crate) widget: Box<dyn Widget<Message, Renderer> + 'a>,
@@ -22,10 +23,7 @@ impl<'a, Message, Renderer> Element<'a, Message, Renderer>
 where
     Renderer: crate::Renderer,
 {
-    /// Create a new [`Element`] containing the given [`Widget`].
-    ///
-    /// [`Element`]: struct.Element.html
-    /// [`Widget`]: widget/trait.Widget.html
+    /// Creates a new [`Element`] containing the given [`Widget`].
     pub fn new(
         widget: impl Widget<Message, Renderer> + 'a,
     ) -> Element<'a, Message, Renderer> {
@@ -38,8 +36,6 @@ where
     ///
     /// This method is useful when you want to decouple different parts of your
     /// UI and make them __composable__.
-    ///
-    /// [`Element`]: struct.Element.html
     ///
     /// # Example
     /// Imagine we want to use [our counter](index.html#usage). But instead of
@@ -186,8 +182,7 @@ where
     /// The [`Renderer`] will explain the layout of the [`Element`] graphically.
     /// This can be very useful for debugging your layout!
     ///
-    /// [`Element`]: struct.Element.html
-    /// [`Renderer`]: trait.Renderer.html
+    /// [`Renderer`]: crate::Renderer
     pub fn explain<C: Into<Color>>(
         self,
         color: C,
@@ -202,23 +197,18 @@ where
     }
 
     /// Returns the width of the [`Element`].
-    ///
-    /// [`Element`]: struct.Element.html
     pub fn width(&self) -> Length {
         self.widget.width()
     }
 
     /// Returns the height of the [`Element`].
-    ///
-    /// [`Element`]: struct.Element.html
     pub fn height(&self) -> Length {
         self.widget.height()
     }
 
     /// Computes the layout of the [`Element`] in the given [`Limits`].
     ///
-    /// [`Element`]: struct.Element.html
-    /// [`Limits`]: layout/struct.Limits.html
+    /// [`Limits`]: layout::Limits
     pub fn layout(
         &self,
         renderer: &Renderer,
@@ -228,8 +218,6 @@ where
     }
 
     /// Processes a runtime [`Event`].
-    ///
-    /// [`Event`]: enum.Event.html
     pub fn on_event(
         &mut self,
         event: Event,
@@ -238,7 +226,7 @@ where
         messages: &mut Vec<Message>,
         renderer: &Renderer,
         clipboard: Option<&dyn Clipboard>,
-    ) {
+    ) -> event::Status {
         self.widget.on_event(
             event,
             layout,
@@ -246,29 +234,33 @@ where
             messages,
             renderer,
             clipboard,
-        );
+        )
     }
 
     /// Draws the [`Element`] and its children using the given [`Layout`].
-    ///
-    /// [`Element`]: struct.Element.html
-    /// [`Layout`]: layout/struct.Layout.html
     pub fn draw(
         &self,
         renderer: &mut Renderer,
         defaults: &Renderer::Defaults,
         layout: Layout<'_>,
         cursor_position: Point,
+        viewport: &Rectangle,
     ) -> Renderer::Output {
         self.widget
-            .draw(renderer, defaults, layout, cursor_position)
+            .draw(renderer, defaults, layout, cursor_position, viewport)
     }
 
     /// Computes the _layout_ hash of the [`Element`].
-    ///
-    /// [`Element`]: struct.Element.html
     pub fn hash_layout(&self, state: &mut Hasher) {
         self.widget.hash_layout(state);
+    }
+
+    /// Returns the overlay of the [`Element`], if there is any.
+    pub fn overlay<'b>(
+        &'b mut self,
+        layout: Layout<'_>,
+    ) -> Option<overlay::Element<'b, Message, Renderer>> {
+        self.widget.overlay(layout)
     }
 }
 
@@ -294,7 +286,9 @@ impl<'a, A, B, Renderer> Map<'a, A, B, Renderer> {
 
 impl<'a, A, B, Renderer> Widget<B, Renderer> for Map<'a, A, B, Renderer>
 where
-    Renderer: crate::Renderer,
+    Renderer: crate::Renderer + 'a,
+    A: 'static,
+    B: 'static,
 {
     fn width(&self) -> Length {
         self.widget.width()
@@ -320,10 +314,10 @@ where
         messages: &mut Vec<B>,
         renderer: &Renderer,
         clipboard: Option<&dyn Clipboard>,
-    ) {
+    ) -> event::Status {
         let mut original_messages = Vec::new();
 
-        self.widget.on_event(
+        let status = self.widget.on_event(
             event,
             layout,
             cursor_position,
@@ -335,6 +329,8 @@ where
         original_messages
             .drain(..)
             .for_each(|message| messages.push((self.mapper)(message)));
+
+        status
     }
 
     fn draw(
@@ -343,13 +339,25 @@ where
         defaults: &Renderer::Defaults,
         layout: Layout<'_>,
         cursor_position: Point,
+        viewport: &Rectangle,
     ) -> Renderer::Output {
         self.widget
-            .draw(renderer, defaults, layout, cursor_position)
+            .draw(renderer, defaults, layout, cursor_position, viewport)
     }
 
     fn hash_layout(&self, state: &mut Hasher) {
         self.widget.hash_layout(state);
+    }
+
+    fn overlay(
+        &mut self,
+        layout: Layout<'_>,
+    ) -> Option<overlay::Element<'_, B, Renderer>> {
+        let mapper = &self.mapper;
+
+        self.widget
+            .overlay(layout)
+            .map(move |overlay| overlay.map(mapper))
     }
 }
 
@@ -396,7 +404,7 @@ where
         messages: &mut Vec<Message>,
         renderer: &Renderer,
         clipboard: Option<&dyn Clipboard>,
-    ) {
+    ) -> event::Status {
         self.element.widget.on_event(
             event,
             layout,
@@ -413,17 +421,26 @@ where
         defaults: &Renderer::Defaults,
         layout: Layout<'_>,
         cursor_position: Point,
+        viewport: &Rectangle,
     ) -> Renderer::Output {
         renderer.explain(
             defaults,
             self.element.widget.as_ref(),
             layout,
             cursor_position,
+            viewport,
             self.color,
         )
     }
 
     fn hash_layout(&self, state: &mut Hasher) {
         self.element.widget.hash_layout(state);
+    }
+
+    fn overlay(
+        &mut self,
+        layout: Layout<'_>,
+    ) -> Option<overlay::Element<'_, Message, Renderer>> {
+        self.element.overlay(layout)
     }
 }

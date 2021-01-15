@@ -8,8 +8,6 @@ pub struct Cursor {
 }
 
 /// The state of a [`Cursor`].
-///
-/// [`Cursor`]: struct.Cursor.html
 #[derive(Debug, Copy, Clone)]
 pub enum State {
     /// Cursor without a selection
@@ -34,9 +32,6 @@ impl Default for Cursor {
 
 impl Cursor {
     /// Returns the [`State`] of the [`Cursor`].
-    ///
-    /// [`State`]: struct.State.html
-    /// [`Cursor`]: struct.Cursor.html
     pub fn state(&self, value: &Value) -> State {
         match self.state {
             State::Index(index) => State::Index(index.min(value.len())),
@@ -166,8 +161,8 @@ impl Cursor {
         end.min(value.len())
     }
 
-    pub(crate) fn selection(&self) -> Option<(usize, usize)> {
-        match self.state {
+    pub(crate) fn selection(&self, value: &Value) -> Option<(usize, usize)> {
+        match self.state(value) {
             State::Selection { start, end } => {
                 Some((start.min(end), start.max(end)))
             }

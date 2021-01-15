@@ -1,9 +1,6 @@
 //! Display fields that can be filled with text.
 //!
 //! A [`TextInput`] has some local [`State`].
-//!
-//! [`TextInput`]: struct.TextInput.html
-//! [`State`]: struct.State.html
 use crate::{bumpalo, css, Bus, Css, Element, Length, Widget};
 
 pub use iced_style::text_input::{Style, StyleSheet};
@@ -53,9 +50,6 @@ impl<'a, Message> TextInput<'a, Message> {
     /// - a placeholder
     /// - the current value
     /// - a function that produces a message when the [`TextInput`] changes
-    ///
-    /// [`TextInput`]: struct.TextInput.html
-    /// [`State`]: struct.State.html
     pub fn new<F>(
         state: &'a mut State,
         placeholder: &str,
@@ -81,40 +75,30 @@ impl<'a, Message> TextInput<'a, Message> {
     }
 
     /// Converts the [`TextInput`] into a secure password input.
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn password(mut self) -> Self {
         self.is_secure = true;
         self
     }
 
     /// Sets the width of the [`TextInput`].
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn width(mut self, width: Length) -> Self {
         self.width = width;
         self
     }
 
     /// Sets the maximum width of the [`TextInput`].
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn max_width(mut self, max_width: u32) -> Self {
         self.max_width = max_width;
         self
     }
 
     /// Sets the padding of the [`TextInput`].
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn padding(mut self, units: u16) -> Self {
         self.padding = units;
         self
     }
 
     /// Sets the text size of the [`TextInput`].
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn size(mut self, size: u16) -> Self {
         self.size = Some(size);
         self
@@ -122,16 +106,12 @@ impl<'a, Message> TextInput<'a, Message> {
 
     /// Sets the message that should be produced when the [`TextInput`] is
     /// focused and the enter key is pressed.
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn on_submit(mut self, message: Message) -> Self {
         self.on_submit = Some(message);
         self
     }
 
     /// Sets the style of the [`TextInput`].
-    ///
-    /// [`TextInput`]: struct.TextInput.html
     pub fn style(mut self, style: impl Into<Box<dyn StyleSheet>>) -> Self {
         self.style_sheet = style.into();
         self
@@ -151,8 +131,26 @@ where
         use dodrio::builder::*;
         use wasm_bindgen::JsCast;
 
-        let padding_class =
-            style_sheet.insert(bump, css::Rule::Padding(self.padding));
+        let class = {
+            use dodrio::bumpalo::collections::String;
+
+            let padding_class =
+                style_sheet.insert(bump, css::Rule::Padding(self.padding));
+
+            String::from_str_in(&padding_class, bump).into_bump_str()
+        };
+
+        let placeholder = {
+            use dodrio::bumpalo::collections::String;
+
+            String::from_str_in(&self.placeholder, bump).into_bump_str()
+        };
+
+        let value = {
+            use dodrio::bumpalo::collections::String;
+
+            String::from_str_in(&self.value, bump).into_bump_str()
+        };
 
         let on_change = self.on_change.clone();
         let on_submit = self.on_submit.clone();
@@ -161,15 +159,14 @@ where
         let style = self.style_sheet.active();
 
         input(bump)
-            .attr(
-                "class",
-                bumpalo::format!(in bump, "{}", padding_class).into_bump_str(),
-            )
+            .attr("class", class)
             .attr(
                 "style",
                 bumpalo::format!(
                     in bump,
-                    "width: {}; max-width: {}; font-size: {}px; background: {}; border-width: {}px; border-color: {}; border-radius: {}px; color: {}",
+                    "width: {}; max-width: {}; font-size: {}px; \
+                    background: {}; border-width: {}px; border-color: {}; \
+                    border-radius: {}px; color: {}",
                     css::length(self.width),
                     css::max_length(self.max_width),
                     self.size.unwrap_or(20),
@@ -181,19 +178,9 @@ where
                 )
                 .into_bump_str(),
             )
-            .attr(
-                "placeholder",
-                bumpalo::format!(in bump, "{}", self.placeholder)
-                    .into_bump_str(),
-            )
-            .attr(
-                "value",
-                bumpalo::format!(in bump, "{}", self.value).into_bump_str(),
-            )
-            .attr(
-                "type",
-                bumpalo::format!(in bump, "{}", if self.is_secure { "password" } else { "text" }).into_bump_str(),
-            )
+            .attr("placeholder", placeholder)
+            .attr("value", value)
+            .attr("type", if self.is_secure { "password" } else { "text" })
             .on("input", move |_root, _vdom, event| {
                 let text_input = match event.target().and_then(|t| {
                     t.dyn_into::<web_sys::HtmlInputElement>().ok()
@@ -206,10 +193,13 @@ where
             })
             .on("keypress", move |_root, _vdom, event| {
                 if let Some(on_submit) = on_submit.clone() {
-                    let event = event.unchecked_into::<web_sys::KeyboardEvent>();
+                    let event =
+                        event.unchecked_into::<web_sys::KeyboardEvent>();
 
                     match event.key_code() {
-                        13 => { submit_event_bus.publish(on_submit); }
+                        13 => {
+                            submit_event_bus.publish(on_submit);
+                        }
                         _ => {}
                     }
                 }
@@ -228,22 +218,16 @@ where
 }
 
 /// The state of a [`TextInput`].
-///
-/// [`TextInput`]: struct.TextInput.html
 #[derive(Debug, Clone, Copy, Default)]
 pub struct State;
 
 impl State {
     /// Creates a new [`State`], representing an unfocused [`TextInput`].
-    ///
-    /// [`State`]: struct.State.html
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Creates a new [`State`], representing a focused [`TextInput`].
-    ///
-    /// [`State`]: struct.State.html
     pub fn focused() -> Self {
         // TODO
         Self::default()

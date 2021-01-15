@@ -1,12 +1,12 @@
 //! Display an interactive selector of a single value from a range of values.
 //!
 //! A [`Slider`] has some local [`State`].
-//!
-//! [`Slider`]: struct.Slider.html
-//! [`State`]: struct.State.html
+use crate::event::{self, Event};
+use crate::layout;
+use crate::mouse;
+use crate::touch;
 use crate::{
-    layout, mouse, Clipboard, Element, Event, Hasher, Layout, Length, Point,
-    Rectangle, Size, Widget,
+    Clipboard, Element, Hasher, Layout, Length, Point, Rectangle, Size, Widget,
 };
 
 use std::{hash::Hash, ops::RangeInclusive};
@@ -19,13 +19,12 @@ use std::{hash::Hash, ops::RangeInclusive};
 /// The [`Slider`] range of numeric values is generic and its step size defaults
 /// to 1 unit.
 ///
-/// [`Slider`]: struct.Slider.html
-///
 /// # Example
 /// ```
 /// # use iced_native::{slider, renderer::Null};
 /// #
 /// # pub type Slider<'a, T, Message> = iced_native::Slider<'a, T, Message, Null>;
+/// #[derive(Clone)]
 /// pub enum Message {
 ///     SliderChanged(f32),
 /// }
@@ -46,12 +45,14 @@ pub struct Slider<'a, T, Message, Renderer: self::Renderer> {
     on_change: Box<dyn Fn(T) -> Message>,
     on_release: Option<Message>,
     width: Length,
+    height: u16,
     style: Renderer::Style,
 }
 
 impl<'a, T, Message, Renderer> Slider<'a, T, Message, Renderer>
 where
     T: Copy + From<u8> + std::cmp::PartialOrd,
+    Message: Clone,
     Renderer: self::Renderer,
 {
     /// Creates a new [`Slider`].
@@ -63,9 +64,6 @@ where
     ///   * a function that will be called when the [`Slider`] is dragged.
     ///   It receives the new value of the [`Slider`] and must produce a
     ///   `Message`.
-    ///
-    /// [`Slider`]: struct.Slider.html
-    /// [`State`]: struct.State.html
     pub fn new<F>(
         state: &'a mut State,
         range: RangeInclusive<T>,
@@ -95,6 +93,7 @@ where
             on_change: Box::new(on_change),
             on_release: None,
             width: Length::Fill,
+            height: Renderer::DEFAULT_HEIGHT,
             style: Renderer::Style::default(),
         }
     }
@@ -105,32 +104,30 @@ where
     /// Typically, the user's interaction with the slider is finished when this message is produced.
     /// This is useful if you need to spawn a long-running task from the slider's result, where
     /// the default on_change message could create too many events.
-    ///
-    /// [`Slider`]: struct.Slider.html
     pub fn on_release(mut self, on_release: Message) -> Self {
         self.on_release = Some(on_release);
         self
     }
 
     /// Sets the width of the [`Slider`].
-    ///
-    /// [`Slider`]: struct.Slider.html
     pub fn width(mut self, width: Length) -> Self {
         self.width = width;
         self
     }
 
+    /// Sets the height of the [`Slider`].
+    pub fn height(mut self, height: u16) -> Self {
+        self.height = height;
+        self
+    }
+
     /// Sets the style of the [`Slider`].
-    ///
-    /// [`Slider`]: struct.Slider.html
     pub fn style(mut self, style: impl Into<Renderer::Style>) -> Self {
         self.style = style.into();
         self
     }
 
     /// Sets the step size of the [`Slider`].
-    ///
-    /// [`Slider`]: struct.Slider.html
     pub fn step(mut self, step: T) -> Self {
         self.step = step;
         self
@@ -138,8 +135,6 @@ where
 }
 
 /// The local state of a [`Slider`].
-///
-/// [`Slider`]: struct.Slider.html
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct State {
     is_dragging: bool,
@@ -147,8 +142,6 @@ pub struct State {
 
 impl State {
     /// Creates a new [`State`].
-    ///
-    /// [`State`]: struct.State.html
     pub fn new() -> State {
         State::default()
     }
@@ -158,8 +151,8 @@ impl<'a, T, Message, Renderer> Widget<Message, Renderer>
     for Slider<'a, T, Message, Renderer>
 where
     T: Copy + Into<f64> + num_traits::FromPrimitive,
-    Renderer: self::Renderer,
     Message: Clone,
+    Renderer: self::Renderer,
 {
     fn width(&self) -> Length {
         self.width
@@ -171,12 +164,11 @@ where
 
     fn layout(
         &self,
-        renderer: &Renderer,
+        _renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        let limits = limits
-            .width(self.width)
-            .height(Length::Units(renderer.height() as u16));
+        let limits =
+            limits.width(self.width).height(Length::Units(self.height));
 
         let size = limits.resolve(Size::ZERO);
 
@@ -191,7 +183,7 @@ where
         messages: &mut Vec<Message>,
         _renderer: &Renderer,
         _clipboard: Option<&dyn Clipboard>,
-    ) {
+    ) -> event::Status {
         let mut change = || {
             let bounds = layout.bounds();
             if cursor_position.x <= bounds.x {
@@ -216,30 +208,39 @@ where
         };
 
         match event {
-            Event::Mouse(mouse_event) => match mouse_event {
-                mouse::Event::ButtonPressed(mouse::Button::Left) => {
-                    if layout.bounds().contains(cursor_position) {
-                        change();
-                        self.state.is_dragging = true;
-                    }
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+            | Event::Touch(touch::Event::FingerPressed { .. }) => {
+                if layout.bounds().contains(cursor_position) {
+                    change();
+                    self.state.is_dragging = true;
+
+                    return event::Status::Captured;
                 }
-                mouse::Event::ButtonReleased(mouse::Button::Left) => {
-                    if self.state.is_dragging {
-                        if let Some(on_release) = self.on_release.clone() {
-                            messages.push(on_release);
-                        }
-                        self.state.is_dragging = false;
+            }
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+            | Event::Touch(touch::Event::FingerLifted { .. })
+            | Event::Touch(touch::Event::FingerLost { .. }) => {
+                if self.state.is_dragging {
+                    if let Some(on_release) = self.on_release.clone() {
+                        messages.push(on_release);
                     }
+                    self.state.is_dragging = false;
+
+                    return event::Status::Captured;
                 }
-                mouse::Event::CursorMoved { .. } => {
-                    if self.state.is_dragging {
-                        change();
-                    }
+            }
+            Event::Mouse(mouse::Event::CursorMoved { .. })
+            | Event::Touch(touch::Event::FingerMoved { .. }) => {
+                if self.state.is_dragging {
+                    change();
+
+                    return event::Status::Captured;
                 }
-                _ => {}
-            },
+            }
             _ => {}
         }
+
+        event::Status::Ignored
     }
 
     fn draw(
@@ -248,6 +249,7 @@ where
         _defaults: &Renderer::Defaults,
         layout: Layout<'_>,
         cursor_position: Point,
+        _viewport: &Rectangle,
     ) -> Renderer::Output {
         let start = *self.range.start();
         let end = *self.range.end();
@@ -275,16 +277,13 @@ where
 /// Your [renderer] will need to implement this trait before being
 /// able to use a [`Slider`] in your user interface.
 ///
-/// [`Slider`]: struct.Slider.html
-/// [renderer]: ../../renderer/index.html
+/// [renderer]: crate::renderer
 pub trait Renderer: crate::Renderer {
     /// The style supported by this renderer.
     type Style: Default;
 
-    /// Returns the height of the [`Slider`].
-    ///
-    /// [`Slider`]: struct.Slider.html
-    fn height(&self) -> u32;
+    /// The default height of a [`Slider`].
+    const DEFAULT_HEIGHT: u16;
 
     /// Draws a [`Slider`].
     ///
@@ -294,10 +293,6 @@ pub trait Renderer: crate::Renderer {
     ///   * the local state of the [`Slider`]
     ///   * the range of values of the [`Slider`]
     ///   * the current value of the [`Slider`]
-    ///
-    /// [`Slider`]: struct.Slider.html
-    /// [`State`]: struct.State.html
-    /// [`Class`]: enum.Class.html
     fn draw(
         &mut self,
         bounds: Rectangle,
@@ -313,8 +308,8 @@ impl<'a, T, Message, Renderer> From<Slider<'a, T, Message, Renderer>>
     for Element<'a, Message, Renderer>
 where
     T: 'a + Copy + Into<f64> + num_traits::FromPrimitive,
-    Renderer: 'a + self::Renderer,
     Message: 'a + Clone,
+    Renderer: 'a + self::Renderer,
 {
     fn from(
         slider: Slider<'a, T, Message, Renderer>,

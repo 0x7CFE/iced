@@ -5,7 +5,7 @@ use iced_native::{Font, Size};
 
 /// The graphics backend of a [`Renderer`].
 ///
-/// [`Renderer`]: ../struct.Renderer.html
+/// [`Renderer`]: crate::Renderer
 pub trait Backend {
     /// Trims the measurements cache.
     ///
@@ -22,8 +22,13 @@ pub trait Text {
 
     /// The `char` representing a ✔ icon in the [`ICON_FONT`].
     ///
-    /// [`ICON_FONT`]: #associatedconst.ICON_FONt
+    /// [`ICON_FONT`]: Self::ICON_FONT
     const CHECKMARK_ICON: char;
+
+    /// The `char` representing a ▼ icon in the built-in [`ICON_FONT`].
+    ///
+    /// [`ICON_FONT`]: Self::ICON_FONT
+    const ARROW_DOWN_ICON: char;
 
     /// Returns the default size of text.
     fn default_size(&self) -> u16;

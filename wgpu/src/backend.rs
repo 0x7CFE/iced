@@ -30,8 +30,6 @@ pub struct Backend {
 
 impl Backend {
     /// Creates a new [`Backend`].
-    ///
-    /// [`Backend`]: struct.Backend.html
     pub fn new(device: &wgpu::Device, settings: Settings) -> Self {
         let text_pipeline =
             text::Pipeline::new(device, settings.format, settings.default_font);
@@ -64,6 +62,7 @@ impl Backend {
     pub fn draw<T: AsRef<str>>(
         &mut self,
         device: &wgpu::Device,
+        staging_belt: &mut wgpu::util::StagingBelt,
         encoder: &mut wgpu::CommandEncoder,
         frame: &wgpu::TextureView,
         viewport: &Viewport,
@@ -85,6 +84,7 @@ impl Backend {
                 scale_factor,
                 transformation,
                 &layer,
+                staging_belt,
                 encoder,
                 &frame,
                 target_size.width,
@@ -104,6 +104,7 @@ impl Backend {
         scale_factor: f32,
         transformation: Transformation,
         layer: &Layer<'_>,
+        staging_belt: &mut wgpu::util::StagingBelt,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
         target_width: u32,
@@ -114,6 +115,7 @@ impl Backend {
         if !layer.quads.is_empty() {
             self.quad_pipeline.draw(
                 device,
+                staging_belt,
                 encoder,
                 &layer.quads,
                 transformation,
@@ -129,6 +131,7 @@ impl Backend {
 
             self.triangle_pipeline.draw(
                 device,
+                staging_belt,
                 encoder,
                 target,
                 target_width,
@@ -147,6 +150,7 @@ impl Backend {
 
                 self.image_pipeline.draw(
                     device,
+                    staging_belt,
                     encoder,
                     &layer.images,
                     scaled,
@@ -225,6 +229,7 @@ impl Backend {
 
             self.text_pipeline.draw_queued(
                 device,
+                staging_belt,
                 encoder,
                 target,
                 transformation,
@@ -248,6 +253,7 @@ impl iced_graphics::Backend for Backend {
 impl backend::Text for Backend {
     const ICON_FONT: Font = font::ICONS;
     const CHECKMARK_ICON: char = font::CHECKMARK_ICON;
+    const ARROW_DOWN_ICON: char = font::ARROW_DOWN_ICON;
 
     fn default_size(&self) -> u16 {
         self.default_text_size

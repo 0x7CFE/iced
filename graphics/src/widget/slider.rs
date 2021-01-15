@@ -1,9 +1,6 @@
 //! Display an interactive selector of a single value from a range of values.
 //!
 //! A [`Slider`] has some local [`State`].
-//!
-//! [`Slider`]: struct.Slider.html
-//! [`State`]: struct.State.html
 use crate::{Backend, Primitive, Renderer};
 use iced_native::mouse;
 use iced_native::slider;
@@ -19,17 +16,13 @@ pub use iced_style::slider::{Handle, HandleShape, Style, StyleSheet};
 pub type Slider<'a, T, Message, Backend> =
     iced_native::Slider<'a, T, Message, Renderer<Backend>>;
 
-const HANDLE_HEIGHT: f32 = 22.0;
-
 impl<B> slider::Renderer for Renderer<B>
 where
     B: Backend,
 {
     type Style = Box<dyn StyleSheet>;
 
-    fn height(&self) -> u32 {
-        30
-    }
+    const DEFAULT_HEIGHT: u16 = 22;
 
     fn draw(
         &mut self,
@@ -61,8 +54,8 @@ where
                     height: 2.0,
                 },
                 background: Background::Color(style.rail_colors.0),
-                border_radius: 0,
-                border_width: 0,
+                border_radius: 0.0,
+                border_width: 0.0,
                 border_color: Color::TRANSPARENT,
             },
             Primitive::Quad {
@@ -73,27 +66,33 @@ where
                     height: 2.0,
                 },
                 background: Background::Color(style.rail_colors.1),
-                border_radius: 0,
-                border_width: 0,
+                border_radius: 0.0,
+                border_width: 0.0,
                 border_color: Color::TRANSPARENT,
             },
         );
 
+        let (handle_width, handle_height, handle_border_radius) = match style
+            .handle
+            .shape
+        {
+            HandleShape::Circle { radius } => {
+                (radius * 2.0, radius * 2.0, radius)
+            }
+            HandleShape::Rectangle {
+                width,
+                border_radius,
+            } => (f32::from(width), f32::from(bounds.height), border_radius),
+        };
+
         let (range_start, range_end) = range.into_inner();
 
-        let (handle_width, handle_height, handle_border_radius) =
-            match style.handle.shape {
-                HandleShape::Circle { radius } => {
-                    (f32::from(radius * 2), f32::from(radius * 2), radius)
-                }
-                HandleShape::Rectangle {
-                    width,
-                    border_radius,
-                } => (f32::from(width), HANDLE_HEIGHT, border_radius),
-            };
-
-        let handle_offset = (bounds.width - handle_width)
-            * ((value - range_start) / (range_end - range_start).max(1.0));
+        let handle_offset = if range_start >= range_end {
+            0.0
+        } else {
+            (bounds.width - handle_width) * (value - range_start)
+                / (range_end - range_start)
+        };
 
         let handle = Primitive::Quad {
             bounds: Rectangle {

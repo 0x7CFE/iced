@@ -32,9 +32,7 @@ pub struct Debug {
 }
 
 impl Debug {
-    /// Creates a new [`Debug`].
-    ///
-    /// [`Debug`]: struct.Debug.html
+    /// Creates a new [`struct@Debug`].
     pub fn new() -> Self {
         let now = time::Instant::now();
 
@@ -174,9 +172,13 @@ impl Debug {
         lines.push(key_value("Render:", self.render_durations.average()));
         lines.push(key_value("Message count:", self.message_count));
         lines.push(String::from("Last messages:"));
-        lines.extend(
-            self.last_messages.iter().map(|msg| format!("    {}", msg)),
-        );
+        lines.extend(self.last_messages.iter().map(|msg| {
+            if msg.len() <= 100 {
+                format!("    {}", msg)
+            } else {
+                format!("    {:.100}...", msg)
+            }
+        }));
 
         lines
     }

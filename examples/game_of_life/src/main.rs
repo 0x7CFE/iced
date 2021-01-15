@@ -1,18 +1,22 @@
 //! This example showcases an interactive version of the Game of Life, invented
 //! by John Conway. It leverages a `Canvas` together with other widgets.
+mod preset;
 mod style;
 
 use grid::Grid;
+use iced::button::{self, Button};
+use iced::executor;
+use iced::pick_list::{self, PickList};
+use iced::slider::{self, Slider};
+use iced::time;
 use iced::{
-    button::{self, Button},
-    executor,
-    slider::{self, Slider},
-    time, Align, Application, Checkbox, Column, Command, Container, Element,
-    Length, Row, Settings, Subscription, Text,
+    Align, Application, Checkbox, Column, Command, Container, Element, Length,
+    Row, Settings, Subscription, Text,
 };
+use preset::Preset;
 use std::time::{Duration, Instant};
 
-pub fn main() {
+pub fn main() -> iced::Result {
     GameOfLife::run(Settings {
         antialiasing: true,
         ..Settings::default()
@@ -27,17 +31,19 @@ struct GameOfLife {
     queued_ticks: usize,
     speed: usize,
     next_speed: Option<usize>,
+    version: usize,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    Grid(grid::Message),
+    Grid(grid::Message, usize),
     Tick(Instant),
     TogglePlayback,
     ToggleGrid(bool),
     Next,
     Clear,
     SpeedChanged(f32),
+    PresetPicked(Preset),
 }
 
 impl Application for GameOfLife {
@@ -48,7 +54,7 @@ impl Application for GameOfLife {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             Self {
-                speed: 1,
+                speed: 5,
                 ..Self::default()
             },
             Command::none(),
@@ -61,8 +67,10 @@ impl Application for GameOfLife {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::Grid(message) => {
-                self.grid.update(message);
+            Message::Grid(message, version) => {
+                if version == self.version {
+                    self.grid.update(message);
+                }
             }
             Message::Tick(_) | Message::Next => {
                 self.queued_ticks = (self.queued_ticks + 1).min(self.speed);
@@ -74,7 +82,11 @@ impl Application for GameOfLife {
 
                     self.queued_ticks = 0;
 
-                    return Command::perform(task, Message::Grid);
+                    let version = self.version;
+
+                    return Command::perform(task, move |message| {
+                        Message::Grid(message, version)
+                    });
                 }
             }
             Message::TogglePlayback => {
@@ -85,6 +97,7 @@ impl Application for GameOfLife {
             }
             Message::Clear => {
                 self.grid.clear();
+                self.version += 1;
             }
             Message::SpeedChanged(speed) => {
                 if self.is_playing {
@@ -92,6 +105,10 @@ impl Application for GameOfLife {
                 } else {
                     self.speed = speed.round() as usize;
                 }
+            }
+            Message::PresetPicked(new_preset) => {
+                self.grid = Grid::from_preset(new_preset);
+                self.version += 1;
             }
         }
 
@@ -108,15 +125,21 @@ impl Application for GameOfLife {
     }
 
     fn view(&mut self) -> Element<Message> {
+        let version = self.version;
         let selected_speed = self.next_speed.unwrap_or(self.speed);
         let controls = self.controls.view(
             self.is_playing,
             self.grid.are_lines_visible(),
             selected_speed,
+            self.grid.preset(),
         );
 
         let content = Column::new()
-            .push(self.grid.view().map(Message::Grid))
+            .push(
+                self.grid
+                    .view()
+                    .map(move |message| Message::Grid(message, version)),
+            )
             .push(controls);
 
         Container::new(content)
@@ -128,10 +151,10 @@ impl Application for GameOfLife {
 }
 
 mod grid {
+    use crate::Preset;
     use iced::{
-        canvas::{
-            self, Cache, Canvas, Cursor, Event, Frame, Geometry, Path, Text,
-        },
+        canvas::event::{self, Event},
+        canvas::{self, Cache, Canvas, Cursor, Frame, Geometry, Path, Text},
         mouse, Color, Element, HorizontalAlignment, Length, Point, Rectangle,
         Size, Vector, VerticalAlignment,
     };
@@ -142,6 +165,7 @@ mod grid {
 
     pub struct Grid {
         state: State,
+        preset: Preset,
         interaction: Interaction,
         life_cache: Cache,
         grid_cache: Cache,
@@ -150,7 +174,6 @@ mod grid {
         show_lines: bool,
         last_tick_duration: Duration,
         last_queued_ticks: usize,
-        version: usize,
     }
 
     #[derive(Debug, Clone)]
@@ -160,7 +183,6 @@ mod grid {
         Ticked {
             result: Result<Life, TickError>,
             tick_duration: Duration,
-            version: usize,
         },
     }
 
@@ -171,8 +193,24 @@ mod grid {
 
     impl Default for Grid {
         fn default() -> Self {
+            Self::from_preset(Preset::default())
+        }
+    }
+
+    impl Grid {
+        const MIN_SCALING: f32 = 0.1;
+        const MAX_SCALING: f32 = 2.0;
+
+        pub fn from_preset(preset: Preset) -> Self {
             Self {
-                state: State::default(),
+                state: State::with_life(
+                    preset
+                        .life()
+                        .into_iter()
+                        .map(|(i, j)| Cell { i, j })
+                        .collect(),
+                ),
+                preset,
                 interaction: Interaction::None,
                 life_cache: Cache::default(),
                 grid_cache: Cache::default(),
@@ -181,20 +219,13 @@ mod grid {
                 show_lines: true,
                 last_tick_duration: Duration::default(),
                 last_queued_ticks: 0,
-                version: 0,
             }
         }
-    }
-
-    impl Grid {
-        const MIN_SCALING: f32 = 0.1;
-        const MAX_SCALING: f32 = 2.0;
 
         pub fn tick(
             &mut self,
             amount: usize,
         ) -> Option<impl Future<Output = Message>> {
-            let version = self.version;
             let tick = self.state.tick(amount)?;
 
             self.last_queued_ticks = amount;
@@ -206,7 +237,6 @@ mod grid {
 
                 Message::Ticked {
                     result,
-                    version,
                     tick_duration,
                 }
             })
@@ -217,16 +247,19 @@ mod grid {
                 Message::Populate(cell) => {
                     self.state.populate(cell);
                     self.life_cache.clear();
+
+                    self.preset = Preset::Custom;
                 }
                 Message::Unpopulate(cell) => {
                     self.state.unpopulate(&cell);
                     self.life_cache.clear();
+
+                    self.preset = Preset::Custom;
                 }
                 Message::Ticked {
                     result: Ok(life),
-                    version,
                     tick_duration,
-                } if version == self.version => {
+                } => {
                     self.state.update(life);
                     self.life_cache.clear();
 
@@ -237,7 +270,6 @@ mod grid {
                 } => {
                     dbg!(error);
                 }
-                Message::Ticked { .. } => {}
             }
         }
 
@@ -250,9 +282,13 @@ mod grid {
 
         pub fn clear(&mut self) {
             self.state = State::default();
-            self.version += 1;
+            self.preset = Preset::Custom;
 
             self.life_cache.clear();
+        }
+
+        pub fn preset(&self) -> Preset {
+            self.preset
         }
 
         pub fn toggle_lines(&mut self, enabled: bool) {
@@ -291,12 +327,18 @@ mod grid {
             event: Event,
             bounds: Rectangle,
             cursor: Cursor,
-        ) -> Option<Message> {
+        ) -> (event::Status, Option<Message>) {
             if let Event::Mouse(mouse::Event::ButtonReleased(_)) = event {
                 self.interaction = Interaction::None;
             }
 
-            let cursor_position = cursor.position_in(&bounds)?;
+            let cursor_position =
+                if let Some(position) = cursor.position_in(&bounds) {
+                    position
+                } else {
+                    return (event::Status::Ignored, None);
+                };
+
             let cell = Cell::at(self.project(cursor_position, bounds.size()));
             let is_populated = self.state.contains(&cell);
 
@@ -308,28 +350,32 @@ mod grid {
 
             match event {
                 Event::Mouse(mouse_event) => match mouse_event {
-                    mouse::Event::ButtonPressed(button) => match button {
-                        mouse::Button::Left => {
-                            self.interaction = if is_populated {
-                                Interaction::Erasing
-                            } else {
-                                Interaction::Drawing
-                            };
+                    mouse::Event::ButtonPressed(button) => {
+                        let message = match button {
+                            mouse::Button::Left => {
+                                self.interaction = if is_populated {
+                                    Interaction::Erasing
+                                } else {
+                                    Interaction::Drawing
+                                };
 
-                            populate.or(unpopulate)
-                        }
-                        mouse::Button::Right => {
-                            self.interaction = Interaction::Panning {
-                                translation: self.translation,
-                                start: cursor_position,
-                            };
+                                populate.or(unpopulate)
+                            }
+                            mouse::Button::Right => {
+                                self.interaction = Interaction::Panning {
+                                    translation: self.translation,
+                                    start: cursor_position,
+                                };
 
-                            None
-                        }
-                        _ => None,
-                    },
+                                None
+                            }
+                            _ => None,
+                        };
+
+                        (event::Status::Captured, message)
+                    }
                     mouse::Event::CursorMoved { .. } => {
-                        match self.interaction {
+                        let message = match self.interaction {
                             Interaction::Drawing => populate,
                             Interaction::Erasing => unpopulate,
                             Interaction::Panning { translation, start } => {
@@ -343,7 +389,14 @@ mod grid {
                                 None
                             }
                             _ => None,
-                        }
+                        };
+
+                        let event_status = match self.interaction {
+                            Interaction::None => event::Status::Ignored,
+                            _ => event::Status::Captured,
+                        };
+
+                        (event_status, message)
                     }
                     mouse::Event::WheelScrolled { delta } => match delta {
                         mouse::ScrollDelta::Lines { y, .. }
@@ -376,11 +429,12 @@ mod grid {
                                 self.grid_cache.clear();
                             }
 
-                            None
+                            (event::Status::Captured, None)
                         }
                     },
-                    _ => None,
+                    _ => (event::Status::Ignored, None),
                 },
+                _ => (event::Status::Ignored, None),
             }
         }
 
@@ -533,6 +587,13 @@ mod grid {
     }
 
     impl State {
+        pub fn with_life(life: Life) -> Self {
+            Self {
+                life,
+                ..Self::default()
+            }
+        }
+
         fn cell_count(&self) -> usize {
             self.life.len() + self.births.len()
         }
@@ -647,6 +708,14 @@ mod grid {
         }
     }
 
+    impl std::iter::FromIterator<Cell> for Life {
+        fn from_iter<I: IntoIterator<Item = Cell>>(iter: I) -> Self {
+            Life {
+                cells: iter.into_iter().collect(),
+            }
+        }
+    }
+
     impl std::fmt::Debug for Life {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("Life")
@@ -741,6 +810,7 @@ struct Controls {
     next_button: button::State,
     clear_button: button::State,
     speed_slider: slider::State,
+    preset_list: pick_list::State<Preset>,
 }
 
 impl Controls {
@@ -749,6 +819,7 @@ impl Controls {
         is_playing: bool,
         is_grid_enabled: bool,
         speed: usize,
+        preset: Preset,
     ) -> Element<'a, Message> {
         let playback_controls = Row::new()
             .spacing(10)
@@ -792,6 +863,17 @@ impl Controls {
                     .size(16)
                     .spacing(5)
                     .text_size(16),
+            )
+            .push(
+                PickList::new(
+                    &mut self.preset_list,
+                    preset::ALL,
+                    Some(preset),
+                    Message::PresetPicked,
+                )
+                .padding(8)
+                .text_size(16)
+                .style(style::PickList),
             )
             .push(
                 Button::new(&mut self.clear_button, Text::new("Clear"))

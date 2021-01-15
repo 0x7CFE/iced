@@ -6,13 +6,12 @@
 //! The [`pane_grid` example] showcases how to use a [`PaneGrid`] with resizing,
 //! drag and drop, and hotkey support.
 //!
-//! [`pane_grid` example]: https://github.com/hecrj/iced/tree/0.1/examples/pane_grid
-//! [`PaneGrid`]: type.PaneGrid.html
+//! [`pane_grid` example]: https://github.com/hecrj/iced/tree/0.2/examples/pane_grid
 use crate::Renderer;
 
-pub use iced_native::pane_grid::{
-    Axis, Content, Direction, DragEvent, Focus, KeyPressEvent, Node, Pane,
-    ResizeEvent, Split, State,
+pub use iced_graphics::pane_grid::{
+    Axis, Configuration, Direction, DragEvent, Line, Node, Pane, ResizeEvent,
+    Split, State, StyleSheet,
 };
 
 /// A collection of panes distributed using either vertical or horizontal splits
@@ -22,3 +21,11 @@ pub use iced_native::pane_grid::{
 ///
 /// This is an alias of an `iced_native` pane grid with an `iced_wgpu::Renderer`.
 pub type PaneGrid<'a, Message> = iced_native::PaneGrid<'a, Message, Renderer>;
+
+/// The content of a [`Pane`].
+pub type Content<'a, Message> =
+    iced_native::pane_grid::Content<'a, Message, Renderer>;
+
+/// The title bar of a [`Pane`].
+pub type TitleBar<'a, Message> =
+    iced_native::pane_grid::TitleBar<'a, Message, Renderer>;
